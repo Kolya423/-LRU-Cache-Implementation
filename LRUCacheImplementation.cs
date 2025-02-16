@@ -4,14 +4,14 @@ using System.Collections.Generic;
 public class LRUCache
 {
     private readonly int capacity;
-    private readonly Dictionary<int, LinkedListNode<(int key, int value)>> cache;
-    private readonly LinkedList<(int key, int value)> order;
+    private readonly Dictionary<int, (int value, DateTime timeStamp)> cache;
+    private readonly SortedSet<(DateTime timeStamp, int key)> timeStamps;
 
     public LRUCache(int capacity)
     {
         this.capacity = capacity;
-        cache = new Dictionary<int, LinkedListNode<(int key, int value)>>();
-        order = new LinkedList<(int key, int value)>();
+        cache = new Dictionary<int, (int value, DateTime timeStamp)>();
+        timeStamps = new SortedSet<(DateTime, int)>();
     }
 
     public int Get(int key)
@@ -21,30 +21,32 @@ public class LRUCache
             return -1;
         }
 
-        var node = cache[key];
-        order.Remove(node);
-        order.AddFirst(node);
-        return node.Value.value;
+        var (value, oldTimeStamp) = cache[key];
+        timeStamps.Remove((oldTimeStamp, key));
+        var newTimeStamp = DateTime.UtcNow;
+        cache[key] = (value, newTimeStamp);
+        timeStamps.Add((newTimeStamp, key));
+
+        return value;
     }
 
     public void Put(int key, int value)
     {
         if (cache.ContainsKey(key))
         {
-            var existingNode = cache[key];
-            order.Remove(existingNode);
-            cache.Remove(key);
+            var (_, oldTimeStamp) = cache[key];
+            timeStamps.Remove((oldTimeStamp, key));
         }
         else if (cache.Count >= capacity)
         {
-            var lastNode = order.Last;
-            cache.Remove(lastNode.Value.key);
-            order.RemoveLast();
+            var oldest = timeStamps.Min;
+            timeStamps.Remove(oldest);
+            cache.Remove(oldest.key);
         }
 
-        var newNode = new LinkedListNode<(int key, int value)>((key, value));
-        order.AddFirst(newNode);
-        cache[key] = newNode;
+        var newTimeStamp = DateTime.UtcNow;
+        cache[key] = (value, newTimeStamp);
+        timeStamps.Add((newTimeStamp, key));
     }
 }
 
